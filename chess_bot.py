@@ -1,4 +1,5 @@
 import chess
+import chess.pgn 
 import random
 
 PIECE_VALUES = {
@@ -31,73 +32,117 @@ def evaluate_board(board):
                 score -= value
     return score
 
-def get_greedy_move(board):
+def minimax(board, depth, is_maximizing):
+    """Pure, simple recursive Minimax algorithm without any pruning."""
+    if depth == 0 or board.is_game_over():
+        return evaluate_board(board)
 
+    if is_maximizing:
+        max_score = float('-inf')
+        for move in board.legal_moves:
+            board.push(move)
+            score = minimax(board, depth - 1, False) # Next turn is minimizing
+            board.pop()
+            max_score = max(max_score, score)
+        return max_score
+    else:
+        min_score = float('inf')
+        for move in board.legal_moves:
+            board.push(move)
+            score = minimax(board, depth - 1, True)  # Next turn is maximizing
+            board.pop()
+            min_score = min(min_score, score)
+        return min_score
+
+def get_bot_move(board, depth=2):
     legal_moves = list(board.legal_moves)
     best_move = None
-    random.shuffle(legal_moves) 
+    random.shuffle(legal_moves)
 
     if board.turn == chess.WHITE:
         best_score = float('-inf')
+        for move in legal_moves:
+            board.push(move)
+            score = minimax(board, depth - 1, False)
+            board.pop()
+            if score > best_score:
+                best_score = score
+                best_move = move
     else:
         best_score = float('inf')
+        for move in legal_moves:
+            board.push(move)
+            score = minimax(board, depth - 1, True)
+            board.pop()
+            if score < best_score:
+                best_score = score
+                best_move = move
 
-    for move in legal_moves:
-        board.push(move)
-        score = evaluate_board(board)
-        board.pop()
-        
-        if board.turn == chess.WHITE:
-            if score > best_score:  # White wants to maximize
-                best_score = score
-                best_move = move
-        else:
-            if score < best_score:  # Black wants to minimize
-                best_score = score
-                best_move = move
-            
     return best_move
 
 def play_game():
     board = chess.Board()
+    
+    # Initialize PGN Tracker
+    pgn_game = chess.pgn.Game()
+    pgn_game.headers["Event"] = "Simple Minimax AI Match"
+    pgn_game.headers["Date"] = "2026.07.11"
+    pgn_node = pgn_game 
 
-    print("Welcome to Chess AI!")
+    print("Welcome to Chess AI (Simple Minimax Engine Version)!")
     user_color_input = input("Choose your color (w for White, b for Black): ").lower().strip()
     
     if user_color_input == 'b':
         user_color = chess.BLACK
+        pgn_game.headers["White"] = "Minimax Bot"
+        pgn_game.headers["Black"] = "Human"
         print("You are playing as BLACK. The bot will make the first move.")
     else:
         user_color = chess.WHITE
+        pgn_game.headers["White"] = "Human"
+        pgn_game.headers["Black"] = "Minimax Bot"
         print("You are playing as WHITE. You make the first move.")
 
     while not board.is_game_over():
         print('\n')
         print(board)
 
+        # Human Turn
         if board.turn == user_color:
             move_str = input("\nEnter your move: ")
             try:
                 move = chess.Move.from_uci(move_str)
                 if move in board.legal_moves:
                     board.push(move)
+                    pgn_node = pgn_node.add_main_variation(move)
                 else:
                     print("Illegal move, Try again!")
-
             except ValueError:
                 print("Invalid format. Use UCI format!")
         
+        # Bot Turn
         else:
             print("\nBot is thinking...")
-            bot_move = get_greedy_move(board)
+            bot_move = get_bot_move(board, depth=3) 
             if bot_move is not None:
                 board.push(bot_move)
+                pgn_node = pgn_node.add_main_variation(bot_move)
                 print(f"Bot played: {bot_move}")
 
     print('\n')
     print(board)
-    print("\nGame over")
-    print(f"Result: {board.result()}")
+    print("\nGame Ended")
+    pgn_game.headers["Result"] = board.result()
+
+    print("\n" + "="*40)
+    print(f"FINAL FEN SNAPSHOT:\n{board.fen()}")
+    print("="*40)
+    
+    filename = "latest_simple_minimax_game.pgn"
+    with open(filename, "w") as pgn_file:
+        pgn_file.write(str(pgn_game))
+    
+    print(f"\nGame history exported! Saved locally to: '{filename}'")
 
 if __name__ == "__main__":
     play_game()

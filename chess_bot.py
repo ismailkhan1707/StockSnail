@@ -32,8 +32,7 @@ def evaluate_board(board):
                 score -= value
     return score
 
-def minimax(board, depth, is_maximizing):
-    """Pure, simple recursive Minimax algorithm without any pruning."""
+def minimax(board, depth, alpha, beta, is_maximizing):
     if depth == 0 or board.is_game_over():
         return evaluate_board(board)
 
@@ -41,42 +40,53 @@ def minimax(board, depth, is_maximizing):
         max_score = float('-inf')
         for move in board.legal_moves:
             board.push(move)
-            score = minimax(board, depth - 1, False) # Next turn is minimizing
+            score = minimax(board, depth - 1, alpha, beta, False)
             board.pop()
             max_score = max(max_score, score)
+            alpha = max(alpha, score)
+            if beta <= alpha:
+                break  # There's a better move already, no need to continue
         return max_score
     else:
         min_score = float('inf')
         for move in board.legal_moves:
             board.push(move)
-            score = minimax(board, depth - 1, True)  # Next turn is maximizing
+            score = minimax(board, depth - 1, alpha, beta, True)
             board.pop()
             min_score = min(min_score, score)
+            beta = min(beta, score)
+            if beta <= alpha:
+                break  # There's a better move already, no need to continue
         return min_score
 
-def get_bot_move(board, depth=2):
+def get_bot_move(board, depth=3):
     legal_moves = list(board.legal_moves)
     best_move = None
     random.shuffle(legal_moves)
 
+    alpha = float('-inf')
+    beta = float('inf')
+    
     if board.turn == chess.WHITE:
         best_score = float('-inf')
         for move in legal_moves:
             board.push(move)
-            score = minimax(board, depth - 1, False)
+            score = minimax(board, depth - 1, alpha, beta, False)
             board.pop()
             if score > best_score:
                 best_score = score
                 best_move = move
+            alpha = max(alpha, score)
     else:
         best_score = float('inf')
         for move in legal_moves:
             board.push(move)
-            score = minimax(board, depth - 1, True)
+            score = minimax(board, depth - 1, alpha, beta, True)
             board.pop()
             if score < best_score:
                 best_score = score
                 best_move = move
+            beta = min(beta, score)
 
     return best_move
 
@@ -85,11 +95,11 @@ def play_game():
     
     # Initialize PGN Tracker
     pgn_game = chess.pgn.Game()
-    pgn_game.headers["Event"] = "Simple Minimax AI Match"
-    pgn_game.headers["Date"] = "2026.07.11"
+    pgn_game.headers["Event"] = "Alpha-Beta Chess AI"
+    pgn_game.headers["Date"] = "2026.07.14"
     pgn_node = pgn_game 
 
-    print("Welcome to Chess AI (Simple Minimax Engine Version)!")
+    print("Welcome to Chess AI!")
     user_color_input = input("Choose your color (w for White, b for Black): ").lower().strip()
     
     if user_color_input == 'b':
